@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 
@@ -27,17 +28,37 @@ func main() {
 		fmt.Printf("Error: %s\n", err)
 		os.Exit(1)
 	}
-	exchange := routing.ExchangePerilDirect
-	routingKey := routing.PauseKey
-	val := routing.PlayingState{
-		IsPaused: true,
+
+	gamelogic.PrintServerHelp()
+	replRunning := true
+	for replRunning { // start REPL loop
+		userInput := gamelogic.GetInput()
+		if len(userInput) == 0 {
+			continue
+		}
+		cmd := userInput[0]
+		switch cmd {
+		case "pause":
+			err = publishPauseMessage(channel, true)
+			if err != nil {
+				fmt.Printf("Error: %s\n", err)
+			} else {
+				fmt.Println("published pause message")
+			}
+		case "resume":
+			err = publishPauseMessage(channel, false)
+			if err != nil {
+				fmt.Printf("Error: %s\n", err)
+			} else {
+				fmt.Println("published resume message")
+			}
+		case "quit":
+			fmt.Println("exitting REPL loop")
+			replRunning = false
+		default:
+			fmt.Printf("Unknown command received: '%s'\n", cmd)
+		}
 	}
-	err = pubsub.PublishJson(channel, exchange, routingKey, val)
-	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
-	}
-	fmt.Println("published message")
 
 	// wait for Ctrl-C
 	signalChan := make(chan os.Signal, 1)
@@ -46,4 +67,18 @@ func main() {
 	fmt.Println("Shutting down Peril server...")
 	connection.Close()
 	os.Exit(0)
+}
+
+func publishPauseMessage(ch *amqp.Channel, isPaused bool) error {
+
+	exchange := routing.ExchangePerilDirect
+	routingKey := routing.PauseKey
+	val := routing.PlayingState{
+		IsPaused: isPaused,
+	}
+	err := pubsub.PublishJson(ch, exchange, routingKey, val)
+	if err != nil {
+		return err
+	}
+	return nil
 }
