@@ -27,11 +27,11 @@ func main() {
 	}
 	gameState := gamelogic.NewGameState(username)
 
-	err = subscribeToPauseQueue(connection, username, gameState)
+	err = subscribeToPauseQueue(connection, gameState)
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
 	}
-	err = subscribeToMovesQueue(connection, username, gameState)
+	err = subscribeToMovesQueue(connection, gameState)
 	if err != nil {
 		log.Fatalf("could not subscribe to moves: %v", err)
 	}
@@ -96,8 +96,8 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 	return handler
 }
 
-func subscribeToPauseQueue(conn *amqp.Connection, username string, gs *gamelogic.GameState) error {
-	queueName := routing.PauseKey + "." + username
+func subscribeToPauseQueue(conn *amqp.Connection, gs *gamelogic.GameState) error {
+	queueName := routing.PauseKey + "." + gs.GetUsername()
 	exchange := routing.ExchangePerilDirect
 	routingKey := routing.PauseKey
 	queueType := pubsub.Transient
@@ -105,8 +105,8 @@ func subscribeToPauseQueue(conn *amqp.Connection, username string, gs *gamelogic
 	return pubsub.SubscribeJSON(conn, exchange, queueName, routingKey, queueType, handler)
 }
 
-func subscribeToMovesQueue(conn *amqp.Connection, username string, gs *gamelogic.GameState) error {
-	queueName := routing.ArmyMovesPrefix + "." + username
+func subscribeToMovesQueue(conn *amqp.Connection, gs *gamelogic.GameState) error {
+	queueName := routing.ArmyMovesPrefix + "." + gs.GetUsername()
 	exchange := routing.ExchangePerilTopic
 	routingKey := routing.ArmyMovesPrefix + ".*"
 	queueType := pubsub.Transient
