@@ -27,12 +27,7 @@ func main() {
 	}
 	gameState := gamelogic.NewGameState(username)
 
-	queueName := routing.PauseKey + "." + username
-	exchange := routing.ExchangePerilDirect
-	routingKey := routing.PauseKey
-	queueType := pubsub.Transient
-	handler := handlerPause(gameState)
-	err = pubsub.SubscribeJSON(connection, exchange, queueName, routingKey, queueType, handler)
+	err = subscribeToPauseQueue(connection, username, gameState)
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
 	}
@@ -53,9 +48,9 @@ func main() {
 			_, err := gameState.CommandMove(userInput)
 			if err != nil {
 				fmt.Println(err)
-			} else {
-				fmt.Println("move successful")
+				continue
 			}
+			fmt.Println("move successful")
 		case "status":
 			gameState.CommandStatus()
 		case "help":
@@ -77,4 +72,13 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 		gs.HandlePause(ps)
 	}
 	return handler
+}
+
+func subscribeToPauseQueue(conn *amqp.Connection, username string, gs *gamelogic.GameState) error {
+	queueName := routing.PauseKey + "." + username
+	exchange := routing.ExchangePerilDirect
+	routingKey := routing.PauseKey
+	queueType := pubsub.Transient
+	handler := handlerPause(gs)
+	return pubsub.SubscribeJSON(conn, exchange, queueName, routingKey, queueType, handler)
 }
