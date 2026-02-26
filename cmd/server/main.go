@@ -3,9 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -29,13 +26,8 @@ func main() {
 		log.Fatalf("could not create channel: %v", err)
 	}
 
-	// wait for Ctrl-C
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-
 	gamelogic.PrintServerHelp()
-	replRunning := true
-	for replRunning { // start REPL loop
+	for {
 		userInput := gamelogic.GetInput()
 		if len(userInput) == 0 {
 			continue
@@ -56,20 +48,11 @@ func main() {
 			}
 		case "quit":
 			fmt.Println("exitting REPL loop")
-			replRunning = false
-			err = sendInterruptSignal()
-			if err != nil {
-				fmt.Printf("Error: %s\n", err)
-			}
+			return
 		default:
 			fmt.Printf("Unknown command received: '%s'\n", cmd)
 		}
 	}
-
-	<-signalChan
-	fmt.Println("Shutting down Peril server...")
-	connection.Close()
-	os.Exit(0)
 }
 
 func publishPauseMessage(ch *amqp.Channel, isPaused bool) error {
@@ -84,9 +67,4 @@ func publishPauseMessage(ch *amqp.Channel, isPaused bool) error {
 		return err
 	}
 	return nil
-}
-
-func sendInterruptSignal() error {
-	pid := os.Getpid()
-	return syscall.Kill(pid, syscall.SIGINT)
 }

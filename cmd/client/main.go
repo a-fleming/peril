@@ -3,9 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -38,14 +35,9 @@ func main() {
 	}
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
-	// wait for Ctrl-C
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-
 	gameState := gamelogic.NewGameState(username)
 
-	replRunning := true
-	for replRunning { // start REPL loop
+	for {
 		userInput := gamelogic.GetInput()
 		if len(userInput) == 0 {
 			continue
@@ -72,23 +64,9 @@ func main() {
 			fmt.Println("Spamming not allowed yet!")
 		case "quit":
 			gamelogic.PrintQuit()
-			replRunning = false
-			err = sendInterruptSignal()
-			if err != nil {
-				fmt.Println(err)
-			}
+			return
 		default:
 			fmt.Printf("Unknown command received: '%s'\n", cmd)
 		}
 	}
-
-	<-signalChan
-	fmt.Println("Shutting down Peril client...")
-	connection.Close()
-	os.Exit(0)
-}
-
-func sendInterruptSignal() error {
-	pid := os.Getpid()
-	return syscall.Kill(pid, syscall.SIGINT)
 }
