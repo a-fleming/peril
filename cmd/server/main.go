@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,16 +19,14 @@ func main() {
 	connectionStr := "amqp://guest:guest@localhost:5672/"
 	connection, err := amqp.Dial(connectionStr)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("could not conenct to RabbitMQ: %v", err)
 	}
 	defer connection.Close()
-	fmt.Println("Successfully established connection to RabbitMQ")
+	fmt.Println("Peril game server connected to RabbitMQ")
 
 	channel, err := connection.Channel()
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("could not create channel: %v", err)
 	}
 
 	// wait for Ctrl-C
@@ -44,18 +43,16 @@ func main() {
 		cmd := userInput[0]
 		switch cmd {
 		case "pause":
+			fmt.Println("publishing pause game state")
 			err = publishPauseMessage(channel, true)
 			if err != nil {
-				fmt.Printf("Error: %s\n", err)
-			} else {
-				fmt.Println("published pause message")
+				log.Printf("could not publish pause game state: %v", err)
 			}
 		case "resume":
+			fmt.Println("publishing resume game state")
 			err = publishPauseMessage(channel, false)
 			if err != nil {
-				fmt.Printf("Error: %s\n", err)
-			} else {
-				fmt.Println("published resume message")
+				log.Printf("could not publish resume game state: %v", err)
 			}
 		case "quit":
 			fmt.Println("exitting REPL loop")

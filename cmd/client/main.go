@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,26 +19,24 @@ func main() {
 	connectionStr := "amqp://guest:guest@localhost:5672/"
 	connection, err := amqp.Dial(connectionStr)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("could not connect to RabbitMQ: %v", err)
 	}
 	defer connection.Close()
-	fmt.Println("Successfully established connection to RabbitMQ")
+	fmt.Println("Peril game client connected to RabbitMQ")
 
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("could not get username: %v", err)
 	}
 	queueName := routing.PauseKey + "." + username
 	exchange := routing.ExchangePerilDirect
 	routingKey := routing.PauseKey
 	queueType := pubsub.Transient
-	_, _, err = pubsub.DeclareAndBind(connection, exchange, queueName, routingKey, queueType)
+	_, queue, err := pubsub.DeclareAndBind(connection, exchange, queueName, routingKey, queueType)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("could not subscribe to pause: %v", err)
 	}
+	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	// wait for Ctrl-C
 	signalChan := make(chan os.Signal, 1)
@@ -61,7 +60,7 @@ func main() {
 		case "move":
 			_, err := gameState.CommandMove(userInput)
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				fmt.Println(err)
 			} else {
 				fmt.Println("move successful")
 			}
@@ -76,7 +75,7 @@ func main() {
 			replRunning = false
 			err = sendInterruptSignal()
 			if err != nil {
-				fmt.Printf("%s\n", err)
+				fmt.Println(err)
 			}
 		default:
 			fmt.Printf("Unknown command received: '%s'\n", cmd)
