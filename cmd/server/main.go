@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -28,6 +29,10 @@ func main() {
 		fmt.Printf("Error: %s\n", err)
 		os.Exit(1)
 	}
+
+	// wait for Ctrl-C
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
 
 	gamelogic.PrintServerHelp()
 	replRunning := true
@@ -55,14 +60,15 @@ func main() {
 		case "quit":
 			fmt.Println("exitting REPL loop")
 			replRunning = false
+			err = sendInterruptSignal()
+			if err != nil {
+				fmt.Printf("Error: %s\n", err)
+			}
 		default:
 			fmt.Printf("Unknown command received: '%s'\n", cmd)
 		}
 	}
 
-	// wait for Ctrl-C
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
 	<-signalChan
 	fmt.Println("Shutting down Peril server...")
 	connection.Close()
@@ -81,4 +87,9 @@ func publishPauseMessage(ch *amqp.Channel, isPaused bool) error {
 		return err
 	}
 	return nil
+}
+
+func sendInterruptSignal() error {
+	pid := os.Getpid()
+	return syscall.Kill(pid, syscall.SIGINT)
 }
