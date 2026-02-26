@@ -1,7 +1,49 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"os/signal"
+
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
+	amqp "github.com/rabbitmq/amqp091-go"
+)
 
 func main() {
 	fmt.Println("Starting Peril client...")
+
+	connectionStr := "amqp://guest:guest@localhost:5672/"
+	connection, err := amqp.Dial(connectionStr)
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+		os.Exit(1)
+	}
+	defer connection.Close()
+	fmt.Println("Successfully established connection to RabbitMQ")
+
+	username, err := gamelogic.ClientWelcome()
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+		os.Exit(1)
+	}
+	queueName := routing.PauseKey + "." + username
+	exchange := routing.ExchangePerilDirect
+	routingKey := routing.PauseKey
+	queueType := pubsub.Transient
+	pubsub.DeclareAndBind(connection, exchange, queueName, routingKey, queueType)
+	// channel, queue, err := pubsub.DeclareAndBind(connection, exchange, queueName, routingKey, queueType)
+	// if err != nil {
+	// 	fmt.Printf("Error: %s\n", err)
+	// 	os.Exit(1)
+	// }
+
+	// wait for Ctrl-C
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+	<-signalChan
+	fmt.Println("Shutting down Peril client...")
+	connection.Close()
+	os.Exit(0)
 }

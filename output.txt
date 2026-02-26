@@ -1,0 +1,226 @@
+[?25l[?2004h╭───────────────────────────────────────────────────────────╮
+│ GET http://localhost:15672/api/exchanges/%2F/peril_direct │
+╰┬──────────────────────────────────────────────────────────╯
+ ├─  ?  Expecting status code: 200
+ ├─  ?  Expecting JSON at .type to be equal to direct
+╭────────────────────────────────────────────╮
+│ ⣽  GET http://localhost:15672/api/overview │
+╰┬───────────────────────────────────────────╯
+[8A [J[2K[?2004l[?25h[?1002l[?1003l[?1006l╭───────────────────────────────────────────────────────────╮
+│ GET http://localhost:15672/api/exchanges/%2F/peril_direct │
+╰┬──────────────────────────────────────────────────────────╯
+ ├─  ?  Expecting status code: 200
+ ├─  ?  Expecting JSON at .type to be equal to direct
+  Response Status Code: 200
+  Response Body: 
+{
+  "arguments": {},
+  "auto_delete": false,
+  "durable": true,
+  "incoming": [],
+  "internal": false,
+  "message_stats": {
+    "publish_in": 2,
+    "publish_in_details": {
+      "rate": 0
+    }
+  },
+  "name": "peril_direct",
+  "outgoing": [],
+  "type": "direct",
+  "user_who_performed_action": "guest",
+  "vhost": "/"
+}
+
+╭─────────────────────────────────────────╮
+│ GET http://localhost:15672/api/overview │
+╰┬────────────────────────────────────────╯
+ ├─  ?  Expecting status code: 200
+ ├─  ?  Expecting JSON at .message_stats.publish to be greater than 0
+ ├─  ?  Expecting JSON at .message_stats.drop_unroutable to be greater than 0
+  Response Status Code: 200
+  Response Body: 
+{
+  "churn_rates": {
+    "channel_closed": 2,
+    "channel_closed_details": {
+      "rate": 0
+    },
+    "channel_created": 3,
+    "channel_created_details": {
+      "rate": 0
+    },
+    "connection_closed": 2,
+    "connection_closed_details": {
+      "rate": 0
+    },
+    "connection_created": 3,
+    "connection_created_details": {
+      "rate": 0
+    },
+    "queue_created": 0,
+    "queue_created_details": {
+      "rate": 0
+    },
+    "queue_declared": 0,
+    "queue_declared_details": {
+      "rate": 0
+    },
+    "queue_deleted": 0,
+    "queue_deleted_details": {
+      "rate": 0
+    }
+  },
+  "cluster_name": "rabbit@36ebbd3f7e7c",
+  "contexts": [
+    {
+      "cowboy_opts": "[{sendfile,false}]",
+      "description": "RabbitMQ Management",
+      "node": "rabbit@36ebbd3f7e7c",
+      "path": "/",
+      "port": "15672",
+      "ssl_opts": []
+    },
+    {
+      "cowboy_opts": "[{sendfile,false}]",
+      "description": "RabbitMQ Prometheus",
+      "node": "rabbit@36ebbd3f7e7c",
+      "path": "/",
+      "port": "15692",
+      "protocol": "'http/prometheus'",
+      "ssl_opts": []
+    }
+  ],
+  "disable_stats": false,
+  "enable_queue_totals": false,
+  "erlang_full_version": "Erlang/OTP 26 [erts-14.2.5.12] [source] [64-bit] [smp:32:32] [ds:32:32:10] [async-threads:1] [jit:ns]",
+  "erlang_version": "26.2.5.16",
+  "exchange_types": [
+    {
+      "description": "AMQP direct exchange, as per the AMQP specification",
+      "enabled": true,
+      "name": "direct"
+    },
+    {
+      "description": "AMQP fanout exchange, as per the AMQP specification",
+      "enabled": true,
+      "name": "fanout"
+    },
+    {
+      "description": "AMQP headers exchange, as per the AMQP specification",
+      "enabled": true,
+      "name": "headers"
+    },
+    {
+      "description": "AMQP topic exchange, as per the AMQP specification",
+      "enabled": true,
+      "name": "topic"
+    },
+    {
+      "description": "Federation upstream helper exchange",
+      "enabled": true,
+      "internal_purpose": "federation",
+      "name": "x-federation-upstream"
+    }
+  ],
+  "is_op_policy_updating_enabled": true,
+  "listeners": [
+    {
+      "ip_address": "::",
+      "node": "rabbit@36ebbd3f7e7c",
+      "port": 5672,
+      "protocol": "amqp",
+      "socket_opts": {
+        "backlog": 128,
+        "exit_on_close": false,
+        "linger": [
+          true,
+          0
+        ],
+        "nodelay": true
+      }
+    },
+    {
+      "ip_address": "::",
+      "node": "rabbit@36ebbd3f7e7c",
+      "port": 25672,
+      "protocol": "clustering",
+      "socket_opts": []
+    },
+    {
+      "ip_address": "::",
+      "node": "rabbit@36ebbd3f7e7c",
+      "port": 15672,
+      "protocol": "http",
+      "socket_opts": {
+        "cowboy_opts": {
+          "sendfile": false
+        },
+        "port": 15672
+      }
+    },
+    {
+      "ip_address": "::",
+      "node": "rabbit@36ebbd3f7e7c",
+      "port": 15692,
+      "protocol": "http/prometheus",
+      "socket_opts": {
+        "cowboy_opts": {
+          "sendfile": false
+        },
+        "port": 15692,
+        "protocol": "http/prometheus"
+      }
+    }
+  ],
+  "management_version": "3.13.7",
+  "message_stats": {
+    "confirm": 0,
+    "confirm_details": {
+      "rate": 0
+    },
+    "drop_unroutable": 2,
+    "drop_unroutable_details": {
+      "rate": 0
+    },
+    "publish": 2,
+    "publish_details": {
+      "rate": 0
+    },
+    "return_unroutable": 0,
+    "return_unroutable_details": {
+      "rate": 0
+    }
+  },
+  "node": "rabbit@36ebbd3f7e7c",
+  "object_totals": {
+    "channels": 1,
+    "connections": 1,
+    "consumers": 0,
+    "exchanges": 8,
+    "queues": 0
+  },
+  "product_name": "RabbitMQ",
+  "product_version": "3.13.7",
+  "queue_totals": {},
+  "rabbitmq_version": "3.13.7",
+  "rates_mode": "basic",
+  "release_series_support_status": "supported",
+  "sample_retention_policies": {
+    "basic": [
+      600,
+      3600
+    ],
+    "detailed": [
+      600
+    ],
+    "global": [
+      600,
+      3600,
+      28800,
+      86400
+    ]
+  },
+  "statistics_db_event_queue": 0
+}
+

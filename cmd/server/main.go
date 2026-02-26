@@ -5,6 +5,9 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
+
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -18,6 +21,23 @@ func main() {
 	}
 	defer connection.Close()
 	fmt.Println("Successfully established connection to RabbitMQ")
+
+	channel, err := connection.Channel()
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+		os.Exit(1)
+	}
+	exchange := routing.ExchangePerilDirect
+	routingKey := routing.PauseKey
+	val := routing.PlayingState{
+		IsPaused: true,
+	}
+	err = pubsub.PublishJson(channel, exchange, routingKey, val)
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("published message")
 
 	// wait for Ctrl-C
 	signalChan := make(chan os.Signal, 1)
