@@ -31,6 +31,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
 	}
+	err = subscribeToMovesQueue(connection, username, gameState)
+	if err != nil {
+		log.Fatalf("could not subscribe to moves: %v", err)
+	}
+
+	channel, err := connection.Channel()
+	if err != nil {
+		log.Fatalf("could not create channel: %v", err)
+	}
 
 	for {
 		userInput := gamelogic.GetInput()
@@ -45,12 +54,17 @@ func main() {
 				fmt.Printf("%s\n", err)
 			}
 		case "move":
-			_, err := gameState.CommandMove(userInput)
+			armyMove, err := gameState.CommandMove(userInput)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
-			fmt.Println("move successful")
+			err = publishMove(channel, armyMove)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			fmt.Println("move published successfully")
 		case "status":
 			gameState.CommandStatus()
 		case "help":
@@ -64,6 +78,14 @@ func main() {
 			fmt.Printf("Unknown command received: '%s'\n", cmd)
 		}
 	}
+}
+
+func handlerMoves(gs *gamelogic.GameState) func(move gamelogic.ArmyMove) {
+	handler := func(move gamelogic.ArmyMove) {
+		defer fmt.Print(">")
+		gs.HandleMove(move)
+	}
+	return handler
 }
 
 func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
@@ -81,4 +103,23 @@ func subscribeToPauseQueue(conn *amqp.Connection, username string, gs *gamelogic
 	queueType := pubsub.Transient
 	handler := handlerPause(gs)
 	return pubsub.SubscribeJSON(conn, exchange, queueName, routingKey, queueType, handler)
+}
+
+func subscribeToMovesQueue(conn *amqp.Connection, username string, gs *gamelogic.GameState) error {
+	queueName := routing.ArmyMovesPrefix + "." + username
+	exchange := routing.ExchangePerilTopic
+	routingKey := routing.ArmyMovesPrefix + ".*"
+	queueType := pubsub.Transient
+	handler := handlerMoves(gs)
+	return pubsub.SubscribeJSON(conn, exchange, queueName, routingKey, queueType, handler)
+}
+
+func publishMove(ch *amqp.Channel, move gamelogic.ArmyMove) error {
+	exchange := routing.ExchangePerilTopic
+	routingKey := routing.ArmyMovesPrefix + "." + move.Player.Username
+	err := pubsub.PublishJson(ch, exchange, routingKey, move)
+	if err != nil {
+		return err
+	}
+	return nil
 }
