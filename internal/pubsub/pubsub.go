@@ -1,7 +1,9 @@
 package pubsub
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"encoding/json"
 	"log"
 
@@ -58,17 +60,31 @@ func DeclareAndBind(
 	return channel, queue, nil
 }
 
+func PublishGob[T any](ch *amqp.Channel, exchange, key string, val T) error {
+	var buffer bytes.Buffer
+	enc := gob.NewEncoder(&buffer)
+	err := enc.Encode(val)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	return ch.PublishWithContext(ctx, exchange, key, false, false, amqp.Publishing{
+		ContentType: "application/gob",
+		Body:        buffer.Bytes(),
+	})
+}
+
 func PublishJson[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	jsonBytes, err := json.Marshal(val)
 	if err != nil {
 		return err
 	}
 	ctx := context.Background()
-	ch.PublishWithContext(ctx, exchange, key, false, false, amqp.Publishing{
+	return ch.PublishWithContext(ctx, exchange, key, false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        jsonBytes,
 	})
-	return nil
 }
 
 func SubscribeJSON[T any](

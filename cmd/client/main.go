@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -39,7 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not subscribe to moves: %v", err)
 	}
-	err = subscribeToWarQueue(connection, gameState)
+	err = subscribeToWarQueue(connection, gameState, channel)
 	if err != nil {
 		log.Fatalf("could not subscribe to war: %v", err)
 	}
@@ -115,25 +116,38 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.Ack
 	return handler
 }
 
-func handlerWar(gs *gamelogic.GameState) func(gamelogic.RecognitionOfWar) pubsub.AckType {
+func handlerWar(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.RecognitionOfWar) pubsub.AckType {
 	handler := func(rw gamelogic.RecognitionOfWar) pubsub.AckType {
 		defer fmt.Print("> ")
-		outcome, _, _ := gs.HandleWar(rw)
+		msg := ""
+		outcome, winner, loser := gs.HandleWar(rw)
 		switch outcome {
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackRequeue
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon:
-			return pubsub.Ack
+			msg = winner + " won a war against " + loser
 		case gamelogic.WarOutcomeYouWon:
-			return pubsub.Ack
+			msg = winner + " won a war against " + loser
 		case gamelogic.WarOutcomeDraw:
-			return pubsub.Ack
+			msg = "A war between " + winner + " and " + loser + " resulted in a draw"
 		default:
 			log.Printf("Unknown war outcome: %v\n", outcome)
 			return pubsub.NackDiscard
 		}
+		// Log and Acknowledge
+		gameLog := routing.GameLog{
+			CurrentTime: time.Now(),
+			Message:     msg,
+			Username:    rw.Attacker.Username,
+		}
+		err := publishGameLog(ch, gameLog)
+		if err != nil {
+			log.Println(err)
+			return pubsub.NackRequeue
+		}
+		return pubsub.Ack
 	}
 	return handler
 }
@@ -156,13 +170,23 @@ func subscribeToMovesQueue(conn *amqp.Connection, gs *gamelogic.GameState, ch *a
 	return pubsub.SubscribeJSON(conn, exchange, queueName, routingKey, queueType, handler)
 }
 
-func subscribeToWarQueue(conn *amqp.Connection, gs *gamelogic.GameState) error {
+func subscribeToWarQueue(conn *amqp.Connection, gs *gamelogic.GameState, ch *amqp.Channel) error {
 	queueName := routing.WarRecognitionsPrefix
 	exchange := routing.ExchangePerilTopic
 	routingKey := routing.WarRecognitionsPrefix + ".*"
 	queueType := pubsub.Durable
-	handler := handlerWar(gs)
+	handler := handlerWar(gs, ch)
 	return pubsub.SubscribeJSON(conn, exchange, queueName, routingKey, queueType, handler)
+}
+
+func publishGameLog(ch *amqp.Channel, gl routing.GameLog) error {
+	exchange := routing.ExchangePerilTopic
+	routingKey := routing.GameLogSlug + "." + gl.Username
+	err := pubsub.PublishGob(ch, exchange, routingKey, gl)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func publishMove(ch *amqp.Channel, move gamelogic.ArmyMove) error {
