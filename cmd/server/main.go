@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"log"
 
@@ -25,16 +27,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not create channel: %v", err)
 	}
-
 	queueName := "game_logs"
 	exchange := routing.ExchangePerilTopic
 	routingKey := routing.GameLogSlug + ".*"
 	queueType := pubsub.Durable
-	_, queue, err := pubsub.DeclareAndBind(connection, exchange, queueName, routingKey, queueType)
+	handler := handlerLogs()
+	unmarshaller := gameLogUnmarshaller
+	err = pubsub.SubscribeGob(connection, exchange, queueName, routingKey, queueType, handler, unmarshaller)
 	if err != nil {
-		log.Fatalf("could not subscribe to pause: %v", err)
+		log.Fatalf("could not subscribe to game_logs queue: %v", err)
 	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
+	fmt.Printf("Queue %v declared and bound!\n", queueName)
 
 	gamelogic.PrintServerHelp()
 	for {
@@ -65,8 +68,32 @@ func main() {
 	}
 }
 
-func publishPauseMessage(ch *amqp.Channel, isPaused bool) error {
+func gameLogUnmarshaller(gobData []byte) (routing.GameLog, error) {
+	buffer := bytes.NewBuffer(gobData)
+	var gl routing.GameLog
+	dec := gob.NewDecoder(buffer)
+	err := dec.Decode(&gl)
+	if err != nil {
+		return routing.GameLog{}, err
+	}
+	return gl, nil
 
+}
+
+func handlerLogs() func(routing.GameLog) pubsub.AckType {
+	handler := func(gl routing.GameLog) pubsub.AckType {
+		defer fmt.Print("> ")
+		err := gamelogic.WriteLog(gl)
+		if err != nil {
+			log.Printf("Unable to write log: %v\n", err)
+			return pubsub.NackRequeue
+		}
+		return pubsub.Ack
+	}
+	return handler
+}
+
+func publishPauseMessage(ch *amqp.Channel, isPaused bool) error {
 	exchange := routing.ExchangePerilDirect
 	routingKey := routing.PauseKey
 	val := routing.PlayingState{

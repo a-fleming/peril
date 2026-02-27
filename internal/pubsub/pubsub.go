@@ -87,6 +87,54 @@ func PublishJson[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	})
 }
 
+func SubscribeGob[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) AckType,
+	unmarshaller func([]byte) (T, error),
+) error {
+	channel, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if err != nil {
+		return err
+	}
+	deliveryChannel, err := channel.Consume(queueName, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+	go func() {
+		for delivery := range deliveryChannel {
+			msgBytes, err := unmarshaller(delivery.Body)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			ackType := handler(msgBytes)
+			switch ackType {
+			case Ack:
+				err = delivery.Ack(false)
+				log.Println("Ack sent")
+			case NackRequeue:
+				err = delivery.Nack(false, true)
+				log.Println("NackRequeue sent")
+			case NackDiscard:
+				err = delivery.Nack(false, false)
+				log.Println("NackDiscard sent")
+			default:
+				log.Printf("Unknown ackType received: %v\n", ackType)
+				continue
+			}
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+		}
+	}()
+	return nil
+}
+
 func SubscribeJSON[T any](
 	conn *amqp.Connection,
 	exchange,
